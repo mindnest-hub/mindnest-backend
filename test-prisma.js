@@ -1,9 +1,15 @@
-const { PrismaClient } = require('./src/generated/client/client');
+const { PrismaClient } = require('@prisma/client');
 
-try {
+async function test() {
     const prisma = new PrismaClient();
-    console.log('PrismaClient instantiated successfully');
-    prisma.$disconnect();
-} catch (error) {
-    console.error('Error instantiating PrismaClient:', error);
+    try {
+        console.log('Attempting to connect to database...');
+        await prisma.$connect();
+        console.log('✅ Connection successful!');
+    } catch (error) {
+        console.error('❌ Connection failed:', error.message);
+    } finally {
+        await prisma.$disconnect();
+    }
 }
+test();
