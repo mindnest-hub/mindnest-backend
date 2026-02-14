@@ -47,6 +47,8 @@ export class AuthService {
                 walletBalance: user.walletBalance,
                 streak: user.streak,
                 lastLogin: user.lastLogin,
+                moduleBalances: user.moduleBalances,
+                moduleEarnings: user.moduleEarnings,
             },
         };
     }

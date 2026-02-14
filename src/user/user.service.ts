@@ -16,7 +16,7 @@ export class UserService {
         return null;
     }
 
-    async updateProgress(id: string, data: { xp?: number; level?: number; walletBalance?: number; badges?: string[]; streak?: number; lastLogin?: Date }) {
+    async updateProgress(id: string, data: { xp?: number; level?: number; walletBalance?: number; badges?: string[]; streak?: number; lastLogin?: Date; moduleBalances?: any; moduleEarnings?: any }) {
         const updateData: any = { ...data };
         if (data.badges) {
             updateData.badges = JSON.stringify(data.badges);

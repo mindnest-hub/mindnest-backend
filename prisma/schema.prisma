@@ -21,7 +21,9 @@ model User {
   walletBalance Float    @default(0)
   streak        Int      @default(0)
   lastLogin     DateTime @default(now())
-  badges        String   @default("[]") // Stored as JSON string for SQLite simplicity
-  createdAt     DateTime @default(now())
+  moduleBalances Json     @default("{}")
+  moduleEarnings Json     @default("{}")
+  badges         String   @default("[]") // Stored as JSON string for SQLite simplicity
+  createdAt      DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
