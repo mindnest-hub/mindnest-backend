@@ -1,11 +1,17 @@
 import { Injectable, OnModuleInit, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
+    constructor(private configService: ConfigService) {
+        super();
+    }
+
     async onModuleInit() {
-        if (!process.env.DATABASE_URL) {
-            console.error('❌ CRITICAL ERROR: DATABASE_URL environment variable is missing!');
+        const dbUrl = this.configService.get<string>('DATABASE_URL');
+        if (!dbUrl) {
+            console.error('❌ CRITICAL ERROR: DATABASE_URL is missing from ConfigService!');
             throw new InternalServerErrorException('DATABASE_URL is not defined in the environment.');
         }
         try {
