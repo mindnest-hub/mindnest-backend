@@ -17,7 +17,10 @@ export class UserService {
     }
 
     async updateProgress(id: string, data: { xp?: number; level?: number; walletBalance?: number; badges?: string[]; streak?: number; lastLogin?: Date; moduleBalances?: any; moduleEarnings?: any }) {
-        const updateData: any = { ...data };
+        // SECURITY: Filter out sensitive fields that shouldn't be updated directly via this generic endpoint
+        const { walletBalance, fundedBalance, isElite, isAdmin, ...safeData } = data as any;
+        const updateData: any = { ...safeData };
+
         if (data.badges) {
             updateData.badges = JSON.stringify(data.badges);
         }
