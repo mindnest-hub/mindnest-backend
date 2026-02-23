@@ -37,14 +37,44 @@ export class UserService {
         });
     }
 
-    async addReward(id: string, amount: number, xp: number) {
-        // Use increment for atomic safety
-        return this.prisma.user.update({
-            where: { id },
-            data: {
-                walletBalance: { increment: amount },
-                xp: { increment: xp }
+    async addReward(id: string, amount: number, xp: number, actionId: string, reason?: string) {
+        // SECURITY: Prevent duplicate rewards for the same actionId
+        const existingEvent = await this.prisma.rewardEvent.findUnique({
+            where: {
+                userId_actionId: {
+                    userId: id,
+                    actionId: actionId
+                }
             }
+        });
+
+        if (existingEvent) {
+            return { success: false, message: 'Reward already claimed for this action.' };
+        }
+
+        // Transaction to ensure atomicity
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Create the reward event record
+            await tx.rewardEvent.create({
+                data: {
+                    userId: id,
+                    actionId: actionId,
+                    amount: amount,
+                    reason: reason || 'In-app reward'
+                }
+            });
+
+            // 2. Increment the user's balance and XP
+            const updatedUser = await tx.user.update({
+                where: { id },
+                data: {
+                    walletBalance: { increment: amount },
+                    xp: { increment: xp }
+                }
+            });
+
+            const { password, ...result } = updatedUser;
+            return { success: true, user: result };
         });
     }
 

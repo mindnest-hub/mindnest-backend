@@ -35,6 +35,20 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   aiConversations AiConversation[]
+  rewardEvents    RewardEvent[]
+}
+
+model RewardEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  actionId  String   // Unique identifier for the reward action (e.g. "daily_bonus_2024_02_23")
+  amount    Float
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, actionId])
+  @@map("reward_events")
 }
 
 model AiConversation {

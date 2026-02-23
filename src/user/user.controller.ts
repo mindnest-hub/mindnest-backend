@@ -21,8 +21,8 @@ export class UserController {
 
     @UseGuards(AuthGuard('jwt'))
     @Post('reward')
-    async addReward(@Request() req, @Body() body: { amount: number; xp: number }) {
-        return this.userService.addReward(req.user.userId, body.amount, body.xp);
+    async addReward(@Request() req, @Body() body: { amount: number; xp: number; actionId: string; reason?: string }) {
+        return this.userService.addReward(req.user.userId, body.amount, body.xp, body.actionId, body.reason);
     }
 
     @Get('leaderboard')
