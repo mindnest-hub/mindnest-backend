@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -22,5 +22,17 @@ export class UserController {
     @Get('leaderboard')
     async getLeaderboard() {
         return this.userService.getLeaderboard();
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('upgrade-elite')
+    async upgradeElite(@Request() req) {
+        return this.userService.upgradeElite(req.user.userId);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('admin/stats')
+    async getAdminStats(@Request() req) {
+        return this.userService.getAdminStats(req.user.userId);
     }
 }

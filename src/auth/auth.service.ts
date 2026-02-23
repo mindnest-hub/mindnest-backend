@@ -102,6 +102,8 @@ export class AuthService {
                 lastLogin: user.lastLogin,
                 moduleBalances: user.moduleBalances,
                 moduleEarnings: user.moduleEarnings,
+                isElite: user.isElite,
+                isAdmin: user.isAdmin,
             },
         };
     }

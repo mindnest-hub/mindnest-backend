@@ -40,7 +40,8 @@ export class PaymentController {
             await this.prisma.user.update({
                 where: { email },
                 data: {
-                    walletBalance: { increment: actualAmount }
+                    walletBalance: { increment: actualAmount },
+                    fundedBalance: { increment: actualAmount }
                 }
             });
         } else {
