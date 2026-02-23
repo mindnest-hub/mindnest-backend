@@ -16,18 +16,35 @@ export class UserService {
         return null;
     }
 
-    async updateProgress(id: string, data: { xp?: number; level?: number; walletBalance?: number; badges?: string[]; streak?: number; lastLogin?: Date; moduleBalances?: any; moduleEarnings?: any }) {
-        // SECURITY: Filter out sensitive fields that shouldn't be updated directly via this generic endpoint
-        const { walletBalance, fundedBalance, isElite, isAdmin, ...safeData } = data as any;
-        const updateData: any = { ...safeData };
+    async updateProgress(id: string, data: { xp?: number; level?: number; badges?: string[]; streak?: number; lastLogin?: Date; moduleBalances?: any; moduleEarnings?: any }) {
+        // SECURITY: Strictly allow only cosmetic/non-financial fields to be updated via this generic endpoint
+        const safeFields = ['xp', 'level', 'badges', 'streak', 'lastLogin', 'moduleBalances', 'moduleEarnings'];
+        const updateData: any = {};
 
-        if (data.badges) {
-            updateData.badges = JSON.stringify(data.badges);
+        for (const field of safeFields) {
+            if (data[field] !== undefined) {
+                if (field === 'badges' && Array.isArray(data[field])) {
+                    updateData[field] = JSON.stringify(data[field]);
+                } else {
+                    updateData[field] = data[field];
+                }
+            }
         }
 
         return this.prisma.user.update({
             where: { id },
             data: updateData,
+        });
+    }
+
+    async addReward(id: string, amount: number, xp: number) {
+        // Use increment for atomic safety
+        return this.prisma.user.update({
+            where: { id },
+            data: {
+                walletBalance: { increment: amount },
+                xp: { increment: xp }
+            }
         });
     }
 

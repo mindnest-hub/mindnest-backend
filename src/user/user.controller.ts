@@ -19,6 +19,12 @@ export class UserController {
         return this.userService.updateProgress(req.user.userId, body);
     }
 
+    @UseGuards(AuthGuard('jwt'))
+    @Post('reward')
+    async addReward(@Request() req, @Body() body: { amount: number; xp: number }) {
+        return this.userService.addReward(req.user.userId, body.amount, body.xp);
+    }
+
     @Get('leaderboard')
     async getLeaderboard() {
         return this.userService.getLeaderboard();
