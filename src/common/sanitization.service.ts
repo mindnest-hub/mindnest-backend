@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JSDOM } from 'jsdom';
-import * as createDOMPurify from 'dompurify';
+import DOMPurify from 'dompurify';
 
 @Injectable()
 export class SanitizationService {
@@ -9,7 +9,7 @@ export class SanitizationService {
 
     constructor() {
         this.window = new JSDOM('').window;
-        this.dompurify = createDOMPurify(this.window);
+        this.dompurify = DOMPurify(this.window);
     }
 
     /**

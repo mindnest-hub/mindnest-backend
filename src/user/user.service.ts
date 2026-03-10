@@ -64,6 +64,17 @@ export class UserService {
                 }
             });
 
+            // 1b. Log Transaction
+            await tx.transaction.create({
+                data: {
+                    userId: id,
+                    type: 'REWARD',
+                    amount: amount,
+                    reason: reason || 'In-app reward',
+                    status: 'completed'
+                }
+            });
+
             // 2. Increment the user's balance and XP
             const updatedUser = await tx.user.update({
                 where: { id },
@@ -122,6 +133,17 @@ export class UserService {
             },
         });
 
+        // Log Transaction
+        await this.prisma.transaction.create({
+            data: {
+                userId: id,
+                type: 'UPGRADE',
+                amount: -upgradeCost,
+                reason: 'Elite Membership Upgrade',
+                status: 'completed'
+            }
+        });
+
         const { password, ...result } = updatedUser;
         return { message: 'Successfully upgraded to Elite!', user: result };
     }
@@ -148,5 +170,164 @@ export class UserService {
             ageGroups,
             eliteUsers,
         };
+    }
+
+    async submitKYC(userId: string, data: { kycType: string; idNumber: string; fullName: string }) {
+        return this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                kycVerified: false, // In production, we don't auto-verify. We set to false and wait for admin.
+                kycType: data.kycType,
+                kycData: {
+                    idNumber: data.idNumber,
+                    fullName: data.fullName,
+                    submittedAt: new Date().toISOString(),
+                    status: 'pending'
+                }
+            }
+        });
+    }
+
+    async requestWithdrawal(userId: string, amount: number, bankDetails: any) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error('User not found');
+        if (user.walletBalance < amount) throw new Error('Insufficient balance');
+        if (!user.kycVerified) throw new Error('KYC verification required for withdrawals');
+
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Create withdrawal request
+            const request = await tx.withdrawalRequest.create({
+                data: {
+                    userId,
+                    amount,
+                    bankDetails,
+                    status: 'pending'
+                }
+            });
+
+            // 2. Deduct from wallet balance
+            await tx.user.update({
+                where: { id: userId },
+                data: {
+                    walletBalance: { decrement: amount }
+                }
+            });
+
+            // 3. Log Transaction
+            await tx.transaction.create({
+                data: {
+                    userId,
+                    type: 'WITHDRAWAL',
+                    amount: -amount,
+                    reason: `Withdrawal request to ${bankDetails.bankName}`,
+                    status: 'pending'
+                }
+            });
+
+            return request;
+        });
+    }
+
+    async getWithdrawalRequests(adminId: string, status?: string) {
+        const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
+        if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
+
+        return this.prisma.withdrawalRequest.findMany({
+            where: status ? { status } : {},
+            include: { user: { select: { username: true, email: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    async getPendingKycUsers(adminId: string) {
+        const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
+        if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
+
+        // Users who have kycData but kycVerified is false
+        const users = await this.prisma.user.findMany({
+            where: {
+                kycVerified: false,
+                NOT: { kycData: { equals: {} } }
+            },
+            select: { id: true, username: true, email: true, kycType: true, kycData: true, createdAt: true }
+        });
+
+        return users;
+    }
+
+    async updateKycStatus(adminId: string, targetUserId: string, verified: boolean) {
+        const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
+        if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
+
+        return this.prisma.user.update({
+            where: { id: targetUserId },
+            data: { kycVerified: verified }
+        });
+    }
+
+    async updateWithdrawalStatus(adminId: string, requestId: string, status: string) {
+        const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
+        if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
+
+        const request = await this.prisma.withdrawalRequest.findUnique({ where: { id: requestId } });
+        if (!request) throw new Error('Request not found');
+
+        return this.prisma.$transaction(async (tx) => {
+            // Update request status
+            const updatedRequest = await tx.withdrawalRequest.update({
+                where: { id: requestId },
+                data: { status }
+            });
+
+            // If rejected, refund the user
+            if (status === 'rejected') {
+                await tx.user.update({
+                    where: { id: request.userId },
+                    data: { walletBalance: { increment: request.amount } }
+                });
+
+                // Log Refund Transaction
+                await tx.transaction.create({
+                    data: {
+                        userId: request.userId,
+                        type: 'WITHDRAWAL_REFUND',
+                        amount: request.amount,
+                        reason: 'Withdrawal rejected - funds returned',
+                        status: 'completed'
+                    }
+                });
+            } else if (status === 'paid') {
+                // Update transaction status to completed
+                // This is a bit tricky since we don't have the transaction ID easily
+                // For now we'll just log a status update or new entry if needed
+                // But typically 'pending' -> 'completed' is better.
+                // Let's find the original transaction for this withdrawal
+                const originalTx = await tx.transaction.findFirst({
+                    where: {
+                        userId: request.userId,
+                        type: 'WITHDRAWAL',
+                        amount: -request.amount,
+                        status: 'pending'
+                    },
+                    orderBy: { createdAt: 'desc' }
+                });
+
+                if (originalTx) {
+                    await tx.transaction.update({
+                        where: { id: originalTx.id },
+                        data: { status: 'completed' }
+                    });
+                }
+            }
+
+            return updatedRequest;
+        });
+    }
+
+    async getTransactions(userId: string) {
+        return this.prisma.transaction.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 }

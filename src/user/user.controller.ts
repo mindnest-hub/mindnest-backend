@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, UseGuards, Request, Param, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -40,5 +40,47 @@ export class UserController {
     @Get('admin/stats')
     async getAdminStats(@Request() req) {
         return this.userService.getAdminStats(req.user.userId);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('transactions')
+    async getTransactions(@Request() req) {
+        return this.userService.getTransactions(req.user.userId);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('kyc')
+    async submitKYC(@Request() req, @Body() body: { kycType: string; idNumber: string; fullName: string }) {
+        return this.userService.submitKYC(req.user.userId, body);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('withdraw')
+    async requestWithdrawal(@Request() req, @Body() body: { amount: number; bankDetails: any }) {
+        return this.userService.requestWithdrawal(req.user.userId, body.amount, body.bankDetails);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('admin/withdrawals')
+    async getWithdrawalRequests(@Request() req, @Query('status') status?: string) {
+        return this.userService.getWithdrawalRequests(req.user.userId, status);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Get('admin/kyc-pending')
+    async getPendingKycUsers(@Request() req) {
+        return this.userService.getPendingKycUsers(req.user.userId);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Patch('admin/kyc/:id')
+    async updateKycStatus(@Request() req, @Param('id') id: string, @Body() body: { verified: boolean }) {
+        return this.userService.updateKycStatus(req.user.userId, id, body.verified);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Patch('admin/withdraw/:id')
+    async updateWithdrawalStatus(@Request() req, @Param('id') id: string, @Body() body: { status: string }) {
+        return this.userService.updateWithdrawalStatus(req.user.userId, id, body.status);
     }
 }

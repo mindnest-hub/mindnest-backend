@@ -9,6 +9,9 @@ import { UserModule } from './user/user.module';
 import { PrismaService } from './prisma.service';
 import { PaymentModule } from './payment/payment.module';
 import { StorageModule } from './storage/storage.module';
+import { AiModule } from './ai/ai.module';
+import { RedirectService } from './common/redirect.service';
+import { CivicsModule } from './civics/civics.module';
 
 @Module({
   imports: [
@@ -20,7 +23,9 @@ import { StorageModule } from './storage/storage.module';
     AuthModule,
     UserModule,
     PaymentModule,
-    StorageModule
+    StorageModule,
+    AiModule,
+    CivicsModule
   ],
   controllers: [AppController],
   providers: [

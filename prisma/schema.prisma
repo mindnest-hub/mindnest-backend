@@ -17,6 +17,7 @@ model User {
   username      String?  @unique
   password      String
   ageGroup      String   @default("kids") // 'kids', 'teens', 'adults'
+  role          String   @default("user")
   isVerified    Boolean  @default(false)
   verificationCode String?
   verificationExpires DateTime?
@@ -31,11 +32,44 @@ model User {
   lastLogin     DateTime @default(now())
   moduleBalances Json     @default("{}")
   moduleEarnings Json     @default("{}")
+  kycVerified    Boolean  @default(false)
+  kycType        String?  // 'NIN', 'Gov ID', 'Passport'
+  kycData        Json     @default("{}")
   badges         String   @default("[]") // Stored as JSON string for SQLite simplicity
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   aiConversations AiConversation[]
   rewardEvents    RewardEvent[]
+  withdrawals     WithdrawalRequest[]
+  transactions    Transaction[]
+  civicResearch   CivicResearchData[]
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "REWARD", "WITHDRAWAL", "UPGRADE", "TOPUP"
+  amount    Float
+  module    String?  // Optional module name
+  reason    String?
+  status    String   @default("completed")
+  createdAt DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model WithdrawalRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  status      String   @default("pending") // "pending", "approved", "rejected", "paid"
+  bankDetails Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("withdrawal_requests")
 }
 
 model RewardEvent {
@@ -60,4 +94,16 @@ model AiConversation {
   createdAt DateTime @default(now())
 
   @@map("ai_conversations")
+}
+
+model CivicResearchData {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  ageGroup      String   // e.g., 'kids', 'teens', 'adults'
+  simulatorType String   // e.g., 'BUDGET', 'POLITICAL_TRICKS', 'CLASS_CAPTAIN'
+  decisionData  Json     // The specific choices made
+  createdAt     DateTime @default(now())
+
+  @@map("civic_research_data")
 }
