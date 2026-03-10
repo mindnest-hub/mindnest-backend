@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Injectable()
 export class AiService {
@@ -39,20 +40,32 @@ export class AiService {
             if (isInappropriate) {
                 botResponse = "I'm here to help with educational topics. Please keep questions appropriate.";
             } else {
-                // PROXY TO OPENAI or EDGE FUNCTION
-                // For now, let's assume we proxy or provide a robust educational response
-                // If the user has an OpenAI key in env, we could use it here.
+                // Call Supabase Edge Function
+                const supabaseUrl = this.configService.get('SUPABASE_URL');
+                const supabaseAnonKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
 
-                // Simulation of AI response logic based on topic
-                if (data.topic === 'rights') {
-                    botResponse = `In ${data.country}, your legal rights are protected by the constitution. For ${data.ageMode}, it's important to know that... [Detailed logic would be here]`;
-                } else {
-                    botResponse = `As your MindNest Mentor for ${data.country}, I can tell you that ${data.topic} is crucial for ${data.ageMode}. How can I specifically help you today?`;
-                }
+                const response = await axios.post(
+                    `${supabaseUrl}/functions/v1/chat`,
+                    {
+                        message: data.message,
+                        userId: userId,
+                        ageMode: data.ageMode,
+                        topic: data.topic,
+                        country: data.country
+                    },
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${supabaseAnonKey}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                botResponse = response.data.reply;
             }
         } catch (error) {
-            this.logger.error(`AI Error: ${error.message}`);
-            botResponse = "I'm having trouble thinking right now. Please try again later.";
+            this.logger.error(`AI Error: ${error.response?.data?.error || error.message}`);
+            botResponse = "I'm having trouble thinking right now. Please check if the OpenAI API key is set in Supabase Secrets.";
         }
 
         // PERSISTENCE
