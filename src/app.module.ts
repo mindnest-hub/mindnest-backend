@@ -15,7 +15,10 @@ import { CivicsModule } from './civics/civics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'production'
+    }),
     ThrottlerModule.forRoot([{
       ttl: 3600000, // 1 hour
       limit: 10, // 10 requests per hour globally (more restrictive for auth later)

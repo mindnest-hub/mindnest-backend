@@ -11,9 +11,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     }
 
     async onModuleInit() {
-        const dbUrl = this.configService.get<string>('DATABASE_URL');
+        let dbUrl = this.configService.get<string>('DATABASE_URL');
+
+        // Fallback to process.env if ConfigService (NestJS) hasn't loaded it properly
+        if (!dbUrl && process.env.DATABASE_URL) {
+            dbUrl = process.env.DATABASE_URL;
+            this.logger.log('DATABASE_URL retrieved directly from process.env');
+        }
+
         if (!dbUrl) {
-            this.logger.error('CRITICAL ERROR: DATABASE_URL is missing from ConfigService!');
+            this.logger.error('CRITICAL ERROR: DATABASE_URL is missing from both ConfigService and process.env!');
             throw new InternalServerErrorException('DATABASE_URL is not defined in the environment.');
         }
         try {
