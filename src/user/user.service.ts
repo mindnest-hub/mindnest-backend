@@ -65,7 +65,7 @@ export class UserService {
             });
 
             // 1b. Log Transaction
-            await tx.transaction.create({
+            await tx.finTransaction.create({
                 data: {
                     userId: id,
                     type: 'REWARD',
@@ -148,7 +148,7 @@ export class UserService {
         });
 
         // Log Transaction
-        await this.prisma.transaction.create({
+        await this.prisma.finTransaction.create({
             data: {
                 userId: id,
                 type: 'UPGRADE',
@@ -195,7 +195,7 @@ export class UserService {
         });
 
         // Log Transaction
-        await this.prisma.transaction.create({
+        await this.prisma.finTransaction.create({
             data: {
                 userId: userId,
                 type: 'PURCHASE',
@@ -257,7 +257,7 @@ export class UserService {
 
         return this.prisma.$transaction(async (tx) => {
             // 1. Create withdrawal request
-            const request = await tx.withdrawalRequest.create({
+            const request = await tx.withdrawalRecord.create({
                 data: {
                     userId,
                     amount,
@@ -275,7 +275,7 @@ export class UserService {
             });
 
             // 3. Log Transaction
-            await tx.transaction.create({
+            await tx.finTransaction.create({
                 data: {
                     userId,
                     type: 'WITHDRAWAL',
@@ -293,7 +293,7 @@ export class UserService {
         const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
         if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
 
-        return this.prisma.withdrawalRequest.findMany({
+        return this.prisma.withdrawalRecord.findMany({
             where: status ? { status } : {},
             include: { user: { select: { username: true, email: true } } },
             orderBy: { createdAt: 'desc' }
@@ -330,12 +330,12 @@ export class UserService {
         const admin = await this.prisma.user.findUnique({ where: { id: adminId } });
         if (!admin || !admin.isAdmin) throw new Error('Unauthorized');
 
-        const request = await this.prisma.withdrawalRequest.findUnique({ where: { id: requestId } });
+        const request = await this.prisma.withdrawalRecord.findUnique({ where: { id: requestId } });
         if (!request) throw new Error('Request not found');
 
         return this.prisma.$transaction(async (tx) => {
             // Update request status
-            const updatedRequest = await tx.withdrawalRequest.update({
+            const updatedRequest = await tx.withdrawalRecord.update({
                 where: { id: requestId },
                 data: { status }
             });
@@ -348,7 +348,7 @@ export class UserService {
                 });
 
                 // Log Refund Transaction
-                await tx.transaction.create({
+                await tx.finTransaction.create({
                     data: {
                         userId: request.userId,
                         type: 'WITHDRAWAL_REFUND',
@@ -363,7 +363,7 @@ export class UserService {
                 // For now we'll just log a status update or new entry if needed
                 // But typically 'pending' -> 'completed' is better.
                 // Let's find the original transaction for this withdrawal
-                const originalTx = await tx.transaction.findFirst({
+                const originalTx = await tx.finTransaction.findFirst({
                     where: {
                         userId: request.userId,
                         type: 'WITHDRAWAL',
@@ -374,7 +374,7 @@ export class UserService {
                 });
 
                 if (originalTx) {
-                    await tx.transaction.update({
+                    await tx.finTransaction.update({
                         where: { id: originalTx.id },
                         data: { status: 'completed' }
                     });
@@ -386,7 +386,7 @@ export class UserService {
     }
 
     async getTransactions(userId: string) {
-        return this.prisma.transaction.findMany({
+        return this.prisma.finTransaction.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' }
         });
