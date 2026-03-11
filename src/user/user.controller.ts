@@ -32,8 +32,14 @@ export class UserController {
 
     @UseGuards(AuthGuard('jwt'))
     @Post('upgrade-elite')
-    async upgradeElite(@Request() req) {
-        return this.userService.upgradeElite(req.user.userId);
+    async upgradeElite(@Request() req, @Body() body: { duration: 'monthly' | 'yearly' }) {
+        return this.userService.upgradeElite(req.user.userId, body.duration);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Post('purchase-ai-unlimited')
+    async purchaseAiUnlimited(@Request() req, @Body() body: { duration: 'monthly' | 'yearly' }) {
+        return this.userService.purchaseAiUnlimited(req.user.userId, body.duration);
     }
 
     @UseGuards(AuthGuard('jwt'))

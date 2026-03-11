@@ -103,25 +103,36 @@ export class UserService {
         });
     }
 
-    async upgradeElite(id: string) {
+    async upgradeElite(id: string, duration: 'monthly' | 'yearly' = 'yearly') {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user) throw new Error('User not found');
-        if (user.isElite) return { message: 'User is already Elite', user: await this.findOne(id) };
 
-        const upgradeCost = 9000;
+        const costs = {
+            monthly: 2000,
+            yearly: 18000
+        };
+        const upgradeCost = costs[duration];
 
-        // One-time earnings rule enforcement
+        // One-time earnings rule enforcement (only for yearly upgrades or first time)
         if (user.hasUsedEarningsForElite) {
-            // Must have funded capital for subsequent upgrades
             if (user.fundedBalance < upgradeCost) {
                 throw new Error('Mastery renewal requires a real cash deposit via Paystack. Your one-time in-app earnings allowance has already been used.');
             }
         } else {
-            // First time: can use total wallet balance (including earnings)
             if (user.walletBalance < upgradeCost) {
                 throw new Error('Insufficient wallet balance to upgrade to Elite.');
             }
         }
+
+        // Calculate expiration
+        const now = new Date();
+        let newExpires = new Date(now);
+        const daysToAdd = duration === 'monthly' ? 30 : 365;
+
+        if (user.isElite && user.eliteExpires && user.eliteExpires > now) {
+            newExpires = new Date(user.eliteExpires);
+        }
+        newExpires.setDate(newExpires.getDate() + daysToAdd);
 
         const updatedUser = await this.prisma.user.update({
             where: { id },
@@ -129,7 +140,10 @@ export class UserService {
                 walletBalance: user.walletBalance - upgradeCost,
                 fundedBalance: Math.max(0, user.fundedBalance - upgradeCost),
                 isElite: true,
+                eliteExpires: newExpires,
                 hasUsedEarningsForElite: true,
+                // Full Elite also includes AI Unlimited
+                aiUnlimitedExpires: newExpires
             },
         });
 
@@ -139,13 +153,60 @@ export class UserService {
                 userId: id,
                 type: 'UPGRADE',
                 amount: -upgradeCost,
-                reason: 'Elite Membership Upgrade',
+                reason: `Elite Mastery Upgrade (${duration})`,
                 status: 'completed'
             }
         });
 
         const { password, ...result } = updatedUser;
-        return { message: 'Successfully upgraded to Elite!', user: result };
+        return { message: `Successfully upgraded to Elite for ${duration}!`, user: result };
+    }
+
+    async purchaseAiUnlimited(userId: string, duration: 'monthly' | 'yearly') {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error('User not found');
+
+        const costs = {
+            monthly: 1000,
+            yearly: 9000
+        };
+        const cost = costs[duration];
+
+        if (user.fundedBalance < cost) {
+            throw new Error(`Insufficient funded balance to purchase AI Unlimited (${duration}). Please deposit more funds.`);
+        }
+
+        // Calculate expiration
+        const now = new Date();
+        let newExpires = new Date(now);
+        const daysToAdd = duration === 'monthly' ? 30 : 365;
+
+        if (user.aiUnlimitedExpires && user.aiUnlimitedExpires > now) {
+            newExpires = new Date(user.aiUnlimitedExpires);
+        }
+        newExpires.setDate(newExpires.getDate() + daysToAdd);
+
+        const updatedUser = await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                fundedBalance: { decrement: cost },
+                aiUnlimitedExpires: newExpires,
+            },
+        });
+
+        // Log Transaction
+        await this.prisma.transaction.create({
+            data: {
+                userId: userId,
+                type: 'PURCHASE',
+                amount: -cost,
+                reason: `AI Oracle Unlimited Purchase (${duration})`,
+                status: 'completed'
+            }
+        });
+
+        const { password, ...result } = updatedUser;
+        return { message: `AI Oracle Unlimited (${duration}) purchased successfully!`, user: result };
     }
 
     async getAdminStats(adminId: string) {

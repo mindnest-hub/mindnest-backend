@@ -26,9 +26,16 @@ export class AiService {
     }
 
     async processChat(userId: string, data: { message: string, ageMode: string, topic: string, country: string }) {
-        // In a real implementation, we would call OpenAI directly or proxy to the Supabase Edge function.
-        // For this implementation, we will mock the AI response logic but ensure persistence.
-        // However, I will implement a fetch call to satisfy the 'AI Mentor' requirement if possible.
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error('User not found');
+
+        // MONETIZATION: Check Elite status or Message Quota
+        if (!user.isElite && user.aiMessagesLeft <= 0) {
+            return {
+                response: "You've reached your free AI message limit! 📢 Upgrade to Elite at mindnest.bond/finance to get unlimited wisdom from the Oracle. 💎",
+                isLimitReached: true
+            };
+        }
 
         let botResponse = "";
 
@@ -41,27 +48,39 @@ export class AiService {
                 botResponse = "I'm here to help with educational topics. Please keep questions appropriate.";
             } else {
                 // Call Supabase Edge Function
-                const supabaseUrl = this.configService.get('SUPABASE_URL');
-                const supabaseAnonKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
+                const supabaseUrl = process.env.SUPABASE_URL;
+                const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+                if (!supabaseUrl || !supabaseKey) {
+                    throw new Error('Internal Configuration Error: Supabase connection missing');
+                }
 
                 const response = await axios.post(
                     `${supabaseUrl}/functions/v1/chat`,
                     {
+                        userId,
                         message: data.message,
-                        userId: userId,
-                        ageMode: data.ageMode,
-                        topic: data.topic,
-                        country: data.country
+                        ageMode: data.ageMode || "adults",
+                        topic: data.topic || "general",
+                        country: data.country || "Nigeria"
                     },
                     {
                         headers: {
-                            'Authorization': `Bearer ${supabaseAnonKey}`,
+                            'Authorization': `Bearer ${supabaseKey}`,
                             'Content-Type': 'application/json'
                         }
                     }
                 );
 
-                botResponse = response.data.reply;
+                botResponse = response.data.response || response.data.reply || "Thinking...";
+
+                // MONETIZATION: Update quota for non-Elite users
+                if (!user.isElite) {
+                    await this.prisma.user.update({
+                        where: { id: userId },
+                        data: { aiMessagesLeft: { decrement: 1 } }
+                    });
+                }
             }
         } catch (error) {
             this.logger.error(`AI Error: ${error.response?.data?.error || error.message}`);
