@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -390,5 +390,19 @@ export class UserService {
             where: { userId },
             orderBy: { createdAt: 'desc' }
         });
+    }
+
+    async deleteAccount(id: string) {
+        try {
+            // Delete user from Prisma (cascades to records)
+            await this.prisma.user.delete({
+                where: { id }
+            });
+
+            return { success: true, message: 'Account permanently deleted' };
+        } catch (error) {
+            console.error('Failed to delete account:', error);
+            throw new InternalServerErrorException('Failed to delete account data');
+        }
     }
 }

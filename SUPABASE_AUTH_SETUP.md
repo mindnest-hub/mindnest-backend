@@ -19,12 +19,14 @@ Ensure that the verification code is 6 digits long.
 2.  Ensure it is set to `6`.
 3.  Click **Save** if you made any changes.
 
-## 3. Customize Email Templates (Optional)
-If you want to further personalize the welcome message:
+## 3. Customize Email Branding (IMPORTANT for Waitlist)
+To ensure users do not see "Supabase" anywhere, you must edit the email templates!
 
-1.  Go to **Authentication** > **Email Templates**.
-2.  Under **Confirm Signup**, you can edit the HTML/Text to fit your brand.
-3.  Click **Save**.
+1. Go to **Authentication** > **Email Templates**.
+2. Under **Confirm Signup**, change the **Subject** to: `Verify your MindNest Africa Account`
+3. Edit the HTML body to say "Welcome to MindNest Africa!" instead of "Supabase".
+4. *Crucial:* Ensure your **Site URL** (under URL Configuration) is set to `https://mindnest.bond` (or your live domain), so the button takes them to your website and not localhost.
+5. Click **Save**.
 
 ---
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Body, UseGuards, Request, Param, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Body, UseGuards, Request, Param, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -88,5 +88,11 @@ export class UserController {
     @Patch('admin/withdraw/:id')
     async updateWithdrawalStatus(@Request() req, @Param('id') id: string, @Body() body: { status: string }) {
         return this.userService.updateWithdrawalStatus(req.user.userId, id, body.status);
+    }
+
+    @UseGuards(AuthGuard('jwt'))
+    @Delete('account')
+    async deleteAccount(@Request() req) {
+        return this.userService.deleteAccount(req.user.userId);
     }
 }
