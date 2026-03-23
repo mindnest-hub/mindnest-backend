@@ -42,7 +42,8 @@ export class AuthService {
             );
         }
 
-        return { message: 'Profile synced successfully', user };
+        const tokenData = this.generateToken(user);
+        return { message: 'Profile synced successfully', ...tokenData };
     }
 
 
