@@ -51,11 +51,14 @@ export class AuthService {
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) throw new UnauthorizedException('User not found');
 
-        if (user.verificationCode !== code) {
+        // Master Bypass Code for development/investor testing
+        const isMasterCode = code === '123456';
+
+        if (!isMasterCode && user.verificationCode !== code) {
             throw new UnauthorizedException('Invalid verification code');
         }
 
-        if (new Date() > user.verificationExpires) {
+        if (!isMasterCode && new Date() > user.verificationExpires) {
             throw new UnauthorizedException('Verification code expired');
         }
 
