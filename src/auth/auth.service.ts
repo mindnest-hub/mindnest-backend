@@ -32,31 +32,60 @@ export class AuthService {
             throw new UnauthorizedException('Username already taken. Please choose another.');
         }
 
+        // Generate Verification Code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
         // 3. Create user profile
         const user = await this.prisma.user.create({
             data: {
                 email: sanitizedEmail,
-                password: hashedPassword, // Dummy password since Supabase handles Auth
+                password: hashedPassword,
                 ageGroup,
                 username: sanitizedUsername,
-                isVerified: true, // Supabase handles verification
+                isVerified: false,
+                verificationCode,
+                verificationExpires,
             },
         });
 
-        // 4. Notify Admin of new signup
+        // 4. Send Verification Email
+        await this.notificationService.sendOTP(sanitizedEmail, verificationCode);
+
+        // 5. Notify Admin of new signup
         await this.notificationService.notifyAdminNewUser(
             sanitizedEmail,
             sanitizedUsername,
             ageGroup,
         );
 
-        const tokenData = this.generateToken(user);
-        return { message: 'Profile synced successfully', ...tokenData };
+        return { message: 'Verification code sent to your email.' };
     }
 
+    async resendOtp(email: string) {
+        const sanitizedEmail = this.sanitizationService.sanitize(email);
+        const user = await this.prisma.user.findUnique({ where: { email: sanitizedEmail } });
+        
+        if (!user) throw new UnauthorizedException('User not found');
+
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+        await this.prisma.user.update({
+            where: { email: sanitizedEmail },
+            data: {
+                verificationCode,
+                verificationExpires,
+            },
+        });
+
+        await this.notificationService.sendOTP(sanitizedEmail, verificationCode);
+        return { message: 'A new verification code has been sent.' };
+    }
 
     async verifyOtp(email: string, code: string) {
-        const user = await this.prisma.user.findUnique({ where: { email } });
+        const sanitizedEmail = this.sanitizationService.sanitize(email);
+        const user = await this.prisma.user.findUnique({ where: { email: sanitizedEmail } });
         if (!user) throw new UnauthorizedException('User not found');
 
         // Master Bypass Code for development/investor testing
@@ -66,12 +95,12 @@ export class AuthService {
             throw new UnauthorizedException('Invalid verification code');
         }
 
-        if (!isMasterCode && new Date() > user.verificationExpires) {
+        if (!isMasterCode && user.verificationExpires && new Date() > user.verificationExpires) {
             throw new UnauthorizedException('Verification code expired');
         }
 
-        await this.prisma.user.update({
-            where: { email },
+        const updatedUser = await this.prisma.user.update({
+            where: { email: sanitizedEmail },
             data: {
                 isVerified: true,
                 verificationCode: null,
@@ -79,8 +108,10 @@ export class AuthService {
             },
         });
 
-        return this.generateToken(user);
+        const tokenData = this.generateToken(updatedUser);
+        return { message: 'Account verified successfully', ...tokenData };
     }
+
 
     async login(email: string, password: string) {
         const sanitizedEmail = this.sanitizationService.sanitize(email);

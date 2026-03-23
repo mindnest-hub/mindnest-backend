@@ -28,7 +28,13 @@ export class AuthController {
         return this.authService.verifyOtp(email, code);
     }
 
+    @Post('resend-otp')
+    resendOtp(@Body('email') email: string) {
+        return this.authService.resendOtp(email);
+    }
+
     @Throttle({ default: { limit: 3, ttl: 3600000 } }) // 3 requests per hour
+
     @Post('request-password-reset')
     requestPasswordReset(@Body('email') email: string) {
         // This is a placeholder for actual reset logic
