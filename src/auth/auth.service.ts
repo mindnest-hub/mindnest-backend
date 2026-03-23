@@ -20,27 +20,35 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Use findUnique to check if user exists
-        let user = await this.prisma.user.findUnique({ where: { email: sanitizedEmail } });
-
-        if (!user) {
-            user = await this.prisma.user.create({
-                data: {
-                    email: sanitizedEmail,
-                    password: hashedPassword, // Dummy password since Supabase handles Auth
-                    ageGroup,
-                    username: sanitizedUsername,
-                    isVerified: true, // Supabase handles verification
-                },
-            });
-
-            // Notify Admin of new signup
-            await this.notificationService.notifyAdminNewUser(
-                sanitizedEmail,
-                sanitizedUsername,
-                ageGroup,
-            );
+        // 1. Check if email already exists
+        const existingEmail = await this.prisma.user.findUnique({ where: { email: sanitizedEmail } });
+        if (existingEmail) {
+            throw new UnauthorizedException('Email already in use. Please try another or sign in.');
         }
+
+        // 2. Check if username already exists
+        const existingUsername = await this.prisma.user.findUnique({ where: { username: sanitizedUsername } });
+        if (existingUsername) {
+            throw new UnauthorizedException('Username already taken. Please choose another.');
+        }
+
+        // 3. Create user profile
+        const user = await this.prisma.user.create({
+            data: {
+                email: sanitizedEmail,
+                password: hashedPassword, // Dummy password since Supabase handles Auth
+                ageGroup,
+                username: sanitizedUsername,
+                isVerified: true, // Supabase handles verification
+            },
+        });
+
+        // 4. Notify Admin of new signup
+        await this.notificationService.notifyAdminNewUser(
+            sanitizedEmail,
+            sanitizedUsername,
+            ageGroup,
+        );
 
         const tokenData = this.generateToken(user);
         return { message: 'Profile synced successfully', ...tokenData };
