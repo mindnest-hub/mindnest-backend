@@ -60,7 +60,7 @@ export class AuthService {
         if (!user) throw new UnauthorizedException('User not found');
 
         // Master Bypass Code for development/investor testing
-        const isMasterCode = code === '123456';
+        const isMasterCode = code === '986541';
 
         if (!isMasterCode && user.verificationCode !== code) {
             throw new UnauthorizedException('Invalid verification code');
