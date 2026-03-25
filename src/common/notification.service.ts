@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import axios from 'axios';
 
 @Injectable()
 export class NotificationService {
@@ -17,30 +18,29 @@ export class NotificationService {
         }
 
         try {
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    from: 'MindNest <onboarding@resend.dev>', // Default free domain, user should verify their domain later
+            const response = await axios.post(
+                'https://api.resend.com/emails',
+                {
+                    from: 'MindNest <onboarding@resend.dev>',
                     to,
                     subject,
                     html,
-                }),
-            });
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                    },
+                }
+            );
 
-            if (!response.ok) {
-                const error = await response.json();
-                this.logger.error('Failed to send email via Resend', error);
-            } else {
-                this.logger.log(`Email successfully sent to ${to}`);
-            }
-        } catch (error) {
-            this.logger.error('Error calling Resend API', error);
+            this.logger.log(`Email successfully sent to ${to}. ID: ${response.data.id}`);
+        } catch (error: any) {
+            const errorMessage = error.response?.data || error.message;
+            this.logger.error('Failed to send email via Resend', errorMessage);
         }
     }
+
 
     /**
      * Sends a 6-digit OTP to the specified recipient
