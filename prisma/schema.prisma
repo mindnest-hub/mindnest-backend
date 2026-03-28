@@ -46,7 +46,68 @@ model User {
   withdrawals     WithdrawalRecord[]
   transactions    FinTransaction[]
   civicResearch   CivicResearchData[]
+  aiUsage        AiUsage?
+  discussions    Discussion[]
+  comments       Comment[]
+  serviceRequests ServiceRequest[]
+  opportunities   Opportunity[]
 }
+
+model AiUsage {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  dailyCount    Int      @default(0)
+  lastReset     DateTime @default(now())
+  isPremium     Boolean  @default(false)
+}
+
+model Discussion {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String
+  category  String   // "General", "Feedback", "Help", "Module Discussion"
+  comments  Comment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id])
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  content      String
+  createdAt    DateTime   @default(now())
+}
+
+model ServiceRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // "REAL_ESTATE", "LEGAL", "INVESTMENT", "BUSINESS"
+  subject     String
+  description String
+  status      String   @default("pending") // "pending", "contacted", "completed"
+  createdAt   DateTime @default(now())
+}
+
+model Opportunity {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // "JOB", "GRANT", "INTERNSHIP", "PROGRAM"
+  title       String
+  description String
+  location    String?
+  link        String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
 
 model FinTransaction {
   id        String   @id @default(uuid())
